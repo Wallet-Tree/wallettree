@@ -1,0 +1,32 @@
+{
+  "name": "wallettree",
+  "version": "0.1.0",
+  "description": "Implementations for the resolver for Wallet Tree",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test",
+    "lint": "solium -d contracts/",
+    "prepublishOnly": "truffle compile && truffle networks --clean",
+    "pub": "npm run prepublishOnly && npm publish"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wallet-Tree/wallettree.git"
+  },
+  "author": "Normal Finance, Inc.",
+  "contributors": [
+    "Joshua Blew <joshua@wallettree.me>"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Wallet-Tree/wallettree/issues"
+  },
+  "homepage": "https://github.com/Wallet-Tree/wallettree#readme",
+  "devDependencies": {
+    "ethlint": "^1.2.5",
+    "truffle": "^5.7.5"
+  }
+}
