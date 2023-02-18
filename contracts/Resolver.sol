@@ -5,7 +5,7 @@ contract Resolver {
     /* ========== DATA STRUCTURES ========== */
 
     struct Config {
-        bytes32 contentHash; // SHA-256 hash of the file on IPFS
+        string contentHash; // SHA-256 hash of the file on IPFS // TODO: find a way to rever this to bytes32
         bool serverAccess; // Permission for server access set by user
         address owner; // Wallet used to create profile (optional)
     }
@@ -20,7 +20,7 @@ contract Resolver {
     /* ========== MODIFIERS ========== */
 
     modifier onlyAuthorized(bytes32 hash) {
-        require(resolvers[hash].contentHash != bytes4(0x0)); // hash must exist in mapping
+        // require(resolvers[hash].contentHash != bytes4(0x0)); // hash must exist in mapping
         if (!resolvers[hash].serverAccess) {
             require(
                 msg.sender == resolvers[hash].owner,
@@ -57,11 +57,11 @@ contract Resolver {
     // PRIMARY
     function createResolver(
         bytes32 userHash,
-        bytes32 contentHash,
+        string calldata contentHash,
         bool serverAccess
     ) external {
         require(userHash != bytes4(0x0));
-        require(contentHash != bytes4(0x0));
+        // require(contentHash != bytes4(0x0));
         Config storage config = resolvers[userHash];
         config.contentHash = contentHash;
         config.serverAccess = serverAccess;
@@ -71,12 +71,12 @@ contract Resolver {
         emit ResolverCreateEvent(userHash);
     }
 
-    function updateResolverContentHash(bytes32 userHash, bytes32 newContentHash)
+    function updateResolverContentHash(bytes32 userHash, string calldata newContentHash)
         external
         onlyAuthorized(userHash)
         returns (bool success)
     {
-        require(newContentHash != bytes4(0x0));
+        // require(newContentHash != bytes4(0x0));
         resolvers[userHash].contentHash = newContentHash;
         emit ResolverUpdateEvent(userHash, "contentHash");
         return true;
@@ -112,7 +112,7 @@ contract Resolver {
     function getContentHash(bytes32 userHash)
         external
         view
-        returns (bytes32 contentHash)
+        returns (string memory contentHash)
     {
         bytes32 secondaryMappingHash = secondaryResolvers[userHash];
         if (secondaryMappingHash == bytes4(0x0)) {
