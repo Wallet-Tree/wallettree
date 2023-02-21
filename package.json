@@ -28,5 +28,8 @@
   "devDependencies": {
     "ethlint": "^1.2.5",
     "truffle": "^5.7.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.1"
   }
 }
