@@ -1,38 +1,45 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
+import "../node_modules/@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+
 contract Resolver {
     /* ========== DATA STRUCTURES ========== */
 
     struct Config {
-        string contentHash; // SHA-256 hash of the file on IPFS // TODO: find a way to rever this to bytes32
-        bool serverAccess; // Permission for server access set by user
-        address owner; // Wallet used to create profile (optional)
+        string cid;
+        bool allowServer;
+        address owner;
     }
 
     /* ========== STATE VARIABLES ========== */
 
     address private owner;
     address private serverSigner;
-    mapping(bytes32 => Config) private resolvers; // hash of primary PII => Config
-    mapping(bytes32 => bytes32) private secondaryResolvers; // hash of a secondary PII => hash of primary PII
+    mapping(bytes32 => Config) private resolvers;
+    mapping(bytes32 => bytes32) private secondaryResolvers;
 
     /* ========== MODIFIERS ========== */
 
-    modifier onlyAuthorized(bytes32 hash) {
-        // require(resolvers[hash].contentHash != bytes4(0x0)); // hash must exist in mapping
-        if (!resolvers[hash].serverAccess) {
-            require(
-                msg.sender == resolvers[hash].owner,
-                "Caller must be owner"
-            );
+    modifier onlyAuthorized(bytes32 idHash) {
+        require(bytes(resolvers[idHash].cid).length != 0, "Unauthorized");
+        if (!resolvers[idHash].allowServer) {
+            require(msg.sender == resolvers[idHash].owner, "Unauthorized");
         } else {
             require(
-                msg.sender == resolvers[hash].owner ||
+                msg.sender == resolvers[idHash].owner ||
                     msg.sender == serverSigner,
-                "Caller must be owner or server"
+                "Unauthorized"
             );
         }
+        _;
+    }
+
+    modifier validateCid(bytes32 hash, bytes memory signature) {
+        require(
+            SignatureChecker.isValidSignatureNow(msg.sender, hash, signature),
+            "Invalid"
+        );
         _;
     }
 
@@ -52,93 +59,98 @@ contract Resolver {
         serverSigner = _serverSigner;
     }
 
+    function resolve(bytes32 idHash)
+        external
+        view
+        returns (Config memory resolver)
+    {
+        bytes32 secondaryMappingHash = secondaryResolvers[idHash];
+        if (secondaryMappingHash == bytes4(0x0)) {
+            return resolvers[idHash];
+        } else {
+            return resolvers[secondaryMappingHash];
+        }
+    }
+
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    // PRIMARY
     function createResolver(
-        bytes32 userHash,
-        string calldata contentHash,
-        bool serverAccess
-    ) external {
-        require(userHash != bytes4(0x0));
-        // require(contentHash != bytes4(0x0));
-        Config storage config = resolvers[userHash];
-        config.contentHash = contentHash;
-        config.serverAccess = serverAccess;
+        bytes32 idHash,
+        string calldata cid,
+        bytes calldata signature,
+        bool allowServer
+    ) external validateCid(keccak256(abi.encodePacked(cid)), signature) {
+        require(idHash != bytes4(0x0));
+        require(bytes(resolvers[idHash].cid).length == 0, "Invalid");
+        Config storage config = resolvers[idHash];
+        config.cid = cid;
+        config.allowServer = allowServer;
         if (msg.sender != serverSigner) {
             config.owner = msg.sender;
         }
-        emit ResolverCreateEvent(userHash);
+        emit ResolverCreateEvent(idHash);
     }
 
-    function updateResolverContentHash(bytes32 userHash, string calldata newContentHash)
+    function updateResolverCid(
+        bytes32 idHash,
+        string calldata cid,
+        bytes calldata signature
+    )
         external
-        onlyAuthorized(userHash)
+        onlyAuthorized(idHash)
+        validateCid(keccak256(abi.encodePacked(cid)), signature)
         returns (bool success)
     {
-        // require(newContentHash != bytes4(0x0));
-        resolvers[userHash].contentHash = newContentHash;
-        emit ResolverUpdateEvent(userHash, "contentHash");
+        resolvers[idHash].cid = cid;
+        emit ResolverUpdateEvent(idHash, "Cid");
         return true;
     }
 
-    function updateResolverServerAccess(bytes32 userHash, bool newServerAccess)
+    function updateResolverAllowServer(bytes32 idHash, bool allowServer)
         external
-        onlyAuthorized(userHash)
+        onlyAuthorized(idHash)
         returns (bool success)
     {
         if (
-            !newServerAccess &&
-            resolvers[userHash].owner == address(0x0) &&
+            !allowServer &&
+            resolvers[idHash].owner == address(0x0) &&
             msg.sender != serverSigner
         ) {
-            resolvers[userHash].owner = msg.sender;
+            resolvers[idHash].owner = msg.sender;
         }
-        resolvers[userHash].serverAccess = newServerAccess;
-        emit ResolverUpdateEvent(userHash, "serverAccess");
+        resolvers[idHash].allowServer = allowServer;
+        emit ResolverUpdateEvent(idHash, "allowServer");
         return true;
     }
 
-    function deleteResolver(bytes32 userHash)
+    function deleteResolver(bytes32 idHash)
         external
-        onlyAuthorized(userHash)
+        onlyAuthorized(idHash)
         returns (bool success)
     {
-        delete resolvers[userHash];
-        emit ResolverDeleteEvent(userHash);
+        delete resolvers[idHash];
+        emit ResolverDeleteEvent(idHash);
         return true;
     }
 
-    function getContentHash(bytes32 userHash)
-        external
-        view
-        returns (string memory contentHash)
-    {
-        bytes32 secondaryMappingHash = secondaryResolvers[userHash];
-        if (secondaryMappingHash == bytes4(0x0)) {
-            return resolvers[userHash].contentHash;
-        } else {
-            return resolvers[secondaryMappingHash].contentHash;
-        }
-    }
-
-    // SECONDARY
     function createSecondaryResolver(
-        bytes32 userHash,
+        bytes32 idHash,
         bytes32 primaryResolverHash
     ) external onlyAuthorized(primaryResolverHash) {
-        require(userHash != bytes4(0x0));
-        secondaryResolvers[userHash] = primaryResolverHash;
-        emit SecondaryResolverCreateEvent(userHash);
+        require(idHash != bytes4(0x0));
+        require(secondaryResolvers[idHash] == bytes4(0x0), "Invalid");
+        secondaryResolvers[idHash] = primaryResolverHash;
+        emit SecondaryResolverCreateEvent(idHash);
     }
 
-    function deleteSecondaryResolver(bytes32 userHash)
+    function deleteSecondaryResolver(bytes32 idHash)
         external
-        onlyAuthorized(secondaryResolvers[userHash])
+        onlyAuthorized(secondaryResolvers[idHash])
         returns (bool success)
     {
-        delete secondaryResolvers[userHash];
-        emit SecondaryResolverDeleteEvent(userHash);
+        require(secondaryResolvers[idHash] != bytes4(0x0), "Invalid");
+        delete secondaryResolvers[idHash];
+        emit SecondaryResolverDeleteEvent(idHash);
         return true;
     }
 
