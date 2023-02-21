@@ -80,8 +80,8 @@ contract Resolver {
         bytes calldata signature,
         bool allowServer
     ) external validateCid(keccak256(abi.encodePacked(cid)), signature) {
-        require(idHash != bytes4(0x0));
-        require(bytes(resolvers[idHash].cid).length == 0, "Invalid");
+        require(idHash != bytes4(0x0), "Invalid hash");
+        require(bytes(resolvers[idHash].cid).length == 0, "Invalid hash");
         Config storage config = resolvers[idHash];
         config.cid = cid;
         config.allowServer = allowServer;
@@ -137,7 +137,7 @@ contract Resolver {
         bytes32 idHash,
         bytes32 primaryResolverHash
     ) external onlyAuthorized(primaryResolverHash) {
-        require(idHash != bytes4(0x0));
+        require(idHash != bytes4(0x0), "Invalid hash");
         require(secondaryResolvers[idHash] == bytes4(0x0), "Invalid");
         secondaryResolvers[idHash] = primaryResolverHash;
         emit SecondaryResolverCreateEvent(idHash);
@@ -158,7 +158,7 @@ contract Resolver {
 
     function changeServerSigner(address _newServerSigner) external {
         require(msg.sender == owner, "msg.sender must be contract owner");
-        require(_newServerSigner != address(0x0));
+        require(_newServerSigner != address(0x0), "Invalid address");
         serverSigner = _newServerSigner;
     }
 }
