@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "../node_modules/@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import "../node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract Resolver {
     /* ========== DATA STRUCTURES ========== */
@@ -35,9 +35,12 @@ contract Resolver {
         _;
     }
 
-    modifier validateCid(bytes32 hash, bytes memory signature) {
+    modifier validateCid(string calldata cid, bytes memory signature) {
         require(
-            SignatureChecker.isValidSignatureNow(msg.sender, hash, signature),
+            ECDSA.recover(
+                ECDSA.toEthSignedMessageHash(keccak256(abi.encodePacked(cid))),
+                signature
+            ) == serverSigner,
             "Invalid"
         );
         _;
@@ -79,7 +82,7 @@ contract Resolver {
         string calldata cid,
         bytes calldata signature,
         bool allowServer
-    ) external validateCid(keccak256(abi.encodePacked(cid)), signature) {
+    ) external validateCid(cid, signature) {
         require(idHash != bytes4(0x0), "Invalid hash");
         require(bytes(resolvers[idHash].cid).length == 0, "Invalid hash");
         Config storage config = resolvers[idHash];
@@ -98,11 +101,11 @@ contract Resolver {
     )
         external
         onlyAuthorized(idHash)
-        validateCid(keccak256(abi.encodePacked(cid)), signature)
+        validateCid(cid, signature)
         returns (bool success)
     {
         resolvers[idHash].cid = cid;
-        emit ResolverUpdateEvent(idHash, "Cid");
+        emit ResolverUpdateEvent(idHash, "cid");
         return true;
     }
 
