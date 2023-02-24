@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "truffle test",
+    "postinstall" : "truffle compile",
     "lint": "solium -d contracts/",
     "prepublishOnly": "truffle compile && truffle networks --clean",
     "pub": "npm run prepublishOnly && npm publish"
