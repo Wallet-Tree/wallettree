@@ -3,6 +3,7 @@
   "version": "1.1.0",
   "description": "Implementations for the resolver for Wallettree",
   "main": "index.js",
+  "type": "commonjs",
   "directories": {
     "test": "test"
   },
