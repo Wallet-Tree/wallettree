@@ -10,6 +10,7 @@ contract Resolver {
         string cid;
         bool allowServer;
         address owner;
+        bool isValue;
     }
 
     /* ========== STATE VARIABLES ========== */
@@ -22,7 +23,7 @@ contract Resolver {
     /* ========== MODIFIERS ========== */
 
     modifier onlyAuthorized(bytes32 idHash) {
-        require(bytes(resolvers[idHash].cid).length != 0, "Unauthorized");
+        require(resolvers[idHash].isValue == true, "Unauthorized");
         if (!resolvers[idHash].allowServer) {
             require(msg.sender == resolvers[idHash].owner, "Unauthorized");
         } else {
@@ -91,6 +92,7 @@ contract Resolver {
         if (msg.sender != serverSigner) {
             config.owner = msg.sender;
         }
+        config.isValue = true;
         emit ResolverCreateEvent(idHash);
     }
 
