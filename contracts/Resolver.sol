@@ -23,7 +23,7 @@ contract Resolver {
     /* ========== MODIFIERS ========== */
 
     modifier onlyAuthorized(bytes32 idHash) {
-        require(resolvers[idHash].isValue == true, "Unauthorized");
+        require(resolvers[idHash].isValue == true, "Invalid resolver");
         if (!resolvers[idHash].allowServer) {
             require(msg.sender == resolvers[idHash].owner, "Unauthorized");
         } else {
@@ -111,17 +111,14 @@ contract Resolver {
         return true;
     }
 
-    function updateResolverAllowServer(bytes32 idHash, bool allowServer)
-        external
-        onlyAuthorized(idHash)
-        returns (bool success)
-    {
-        if (
-            !allowServer &&
-            resolvers[idHash].owner == address(0x0) &&
-            msg.sender != serverSigner
-        ) {
-            resolvers[idHash].owner = msg.sender;
+    function updateResolverAllowServer(
+        bytes32 idHash,
+        bool allowServer,
+        address newOwner
+    ) external onlyAuthorized(idHash) returns (bool success) {
+        if (!allowServer && resolvers[idHash].owner == address(0x0)) {
+            require(newOwner != address(0x0), "Owner must be valid address");
+            resolvers[idHash].owner = newOwner;
         }
         resolvers[idHash].allowServer = allowServer;
         emit ResolverUpdateEvent(idHash, "allowServer");
