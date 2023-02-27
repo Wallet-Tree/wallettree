@@ -25,7 +25,8 @@
   "homepage": "https://github.com/Wallet-Tree/wallettree#readme",
   "devDependencies": {
     "ethlint": "^1.2.5",
-    "truffle": "^5.7.5"
+    "truffle": "^5.7.5",
+    "web3-utils": "^1.8.2"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.1"
