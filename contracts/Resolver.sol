@@ -77,7 +77,7 @@ contract Resolver {
     ) external validateCid(cid, signature) {
         require(idHash != bytes4(0x0), "Invalid hash");
         Config storage resolver = resolvers[idHash];
-        require(bytes(resolver.cid).length == 0, "Invalid hash");
+        require(resolver.isValue == true, "Invalid request");
         resolver.cid = cid;
         resolver.allowServer = allowServer;
         if (msg.sender != serverSigner) {
