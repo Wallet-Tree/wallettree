@@ -23,13 +23,13 @@ contract Resolver {
     /* ========== MODIFIERS ========== */
 
     modifier onlyAuthorized(bytes32 idHash) {
-        require(resolvers[idHash].isValue == true, "Invalid resolver");
-        if (!resolvers[idHash].allowServer) {
-            require(msg.sender == resolvers[idHash].owner, "Unauthorized");
+        Config storage resolver = resolvers[idHash];
+        require(resolver.isValue == true, "Invalid resolver");
+        if (!resolver.allowServer) {
+            require(msg.sender == resolver.owner, "Unauthorized");
         } else {
             require(
-                msg.sender == resolvers[idHash].owner ||
-                    msg.sender == serverSigner,
+                msg.sender == resolver.owner || msg.sender == serverSigner,
                 "Unauthorized"
             );
         }
@@ -76,14 +76,14 @@ contract Resolver {
         bool allowServer
     ) external validateCid(cid, signature) {
         require(idHash != bytes4(0x0), "Invalid hash");
-        require(bytes(resolvers[idHash].cid).length == 0, "Invalid hash");
-        Config storage config = resolvers[idHash];
-        config.cid = cid;
-        config.allowServer = allowServer;
+        Config storage resolver = resolvers[idHash];
+        require(bytes(resolver.cid).length == 0, "Invalid hash");
+        resolver.cid = cid;
+        resolver.allowServer = allowServer;
         if (msg.sender != serverSigner) {
-            config.owner = msg.sender;
+            resolver.owner = msg.sender;
         }
-        config.isValue = true;
+        resolver.isValue = true;
     }
 
     function updateResolverCid(
