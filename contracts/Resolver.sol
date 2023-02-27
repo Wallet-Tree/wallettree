@@ -47,15 +47,6 @@ contract Resolver {
         _;
     }
 
-    /* ========== EVENTS ========== */
-
-    event ResolverCreateEvent(bytes32 indexed hash);
-    event ResolverUpdateEvent(bytes32 indexed hash, string updateType);
-    event ResolverDeleteEvent(bytes32 indexed hash);
-
-    event SecondaryResolverCreateEvent(bytes32 indexed hash);
-    event SecondaryResolverDeleteEvent(bytes32 indexed hash);
-
     /* ========== CONSTRUCTOR ========== */
 
     constructor(address _serverSigner) {
@@ -93,7 +84,6 @@ contract Resolver {
             config.owner = msg.sender;
         }
         config.isValue = true;
-        emit ResolverCreateEvent(idHash);
     }
 
     function updateResolverCid(
@@ -106,8 +96,8 @@ contract Resolver {
         validateCid(cid, signature)
         returns (bool success)
     {
-        resolvers[idHash].cid = cid;
-        emit ResolverUpdateEvent(idHash, "cid");
+        Config storage resolver = resolvers[idHash];
+        resolver.cid = cid;
         return true;
     }
 
@@ -116,12 +106,12 @@ contract Resolver {
         bool allowServer,
         address newOwner
     ) external onlyAuthorized(idHash) returns (bool success) {
-        if (!allowServer && resolvers[idHash].owner == address(0x0)) {
+        Config storage resolver = resolvers[idHash];
+        if (!allowServer && resolver.owner == address(0x0)) {
             require(newOwner != address(0x0), "Owner must be valid address");
-            resolvers[idHash].owner = newOwner;
+            resolver.owner = newOwner;
         }
-        resolvers[idHash].allowServer = allowServer;
-        emit ResolverUpdateEvent(idHash, "allowServer");
+        resolver.allowServer = allowServer;
         return true;
     }
 
@@ -131,7 +121,6 @@ contract Resolver {
         returns (bool success)
     {
         delete resolvers[idHash];
-        emit ResolverDeleteEvent(idHash);
         return true;
     }
 
@@ -142,7 +131,6 @@ contract Resolver {
         require(idHash != bytes4(0x0), "Invalid hash");
         require(secondaryResolvers[idHash] == bytes4(0x0), "Invalid");
         secondaryResolvers[idHash] = primaryResolverHash;
-        emit SecondaryResolverCreateEvent(idHash);
     }
 
     function deleteSecondaryResolver(bytes32 idHash)
@@ -152,7 +140,6 @@ contract Resolver {
     {
         require(secondaryResolvers[idHash] != bytes4(0x0), "Invalid");
         delete secondaryResolvers[idHash];
-        emit SecondaryResolverDeleteEvent(idHash);
         return true;
     }
 
