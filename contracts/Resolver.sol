@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "../node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract Resolver {
     /* ========== DATA STRUCTURES ========== */
@@ -10,6 +10,7 @@ contract Resolver {
         string cid;
         bool allowServer;
         address owner;
+        bool isValue;
     }
 
     /* ========== STATE VARIABLES ========== */
@@ -22,13 +23,13 @@ contract Resolver {
     /* ========== MODIFIERS ========== */
 
     modifier onlyAuthorized(bytes32 idHash) {
-        require(bytes(resolvers[idHash].cid).length != 0, "Unauthorized");
-        if (!resolvers[idHash].allowServer) {
-            require(msg.sender == resolvers[idHash].owner, "Unauthorized");
+        Config storage resolver = resolvers[idHash];
+        require(resolver.isValue == true, "Invalid resolver");
+        if (!resolver.allowServer) {
+            require(msg.sender == resolver.owner, "Unauthorized");
         } else {
             require(
-                msg.sender == resolvers[idHash].owner ||
-                    msg.sender == serverSigner,
+                msg.sender == resolver.owner || msg.sender == serverSigner,
                 "Unauthorized"
             );
         }
@@ -45,15 +46,6 @@ contract Resolver {
         );
         _;
     }
-
-    /* ========== EVENTS ========== */
-
-    event ResolverCreateEvent(bytes32 indexed hash);
-    event ResolverUpdateEvent(bytes32 indexed hash, string updateType);
-    event ResolverDeleteEvent(bytes32 indexed hash);
-
-    event SecondaryResolverCreateEvent(bytes32 indexed hash);
-    event SecondaryResolverDeleteEvent(bytes32 indexed hash);
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -84,14 +76,14 @@ contract Resolver {
         bool allowServer
     ) external validateCid(cid, signature) {
         require(idHash != bytes4(0x0), "Invalid hash");
-        require(bytes(resolvers[idHash].cid).length == 0, "Invalid hash");
-        Config storage config = resolvers[idHash];
-        config.cid = cid;
-        config.allowServer = allowServer;
+        Config storage resolver = resolvers[idHash];
+        require(resolver.isValue == false, "Invalid request");
+        resolver.cid = cid;
+        resolver.allowServer = allowServer;
         if (msg.sender != serverSigner) {
-            config.owner = msg.sender;
+            resolver.owner = msg.sender;
         }
-        emit ResolverCreateEvent(idHash);
+        resolver.isValue = true;
     }
 
     function updateResolverCid(
@@ -104,25 +96,22 @@ contract Resolver {
         validateCid(cid, signature)
         returns (bool success)
     {
-        resolvers[idHash].cid = cid;
-        emit ResolverUpdateEvent(idHash, "cid");
+        Config storage resolver = resolvers[idHash];
+        resolver.cid = cid;
         return true;
     }
 
-    function updateResolverAllowServer(bytes32 idHash, bool allowServer)
-        external
-        onlyAuthorized(idHash)
-        returns (bool success)
-    {
-        if (
-            !allowServer &&
-            resolvers[idHash].owner == address(0x0) &&
-            msg.sender != serverSigner
-        ) {
-            resolvers[idHash].owner = msg.sender;
+    function updateResolverAllowServer(
+        bytes32 idHash,
+        bool allowServer,
+        address newOwner
+    ) external onlyAuthorized(idHash) returns (bool success) {
+        Config storage resolver = resolvers[idHash];
+        if (!allowServer && resolver.owner == address(0x0)) {
+            require(newOwner != address(0x0), "Owner must be valid address");
+            resolver.owner = newOwner;
         }
-        resolvers[idHash].allowServer = allowServer;
-        emit ResolverUpdateEvent(idHash, "allowServer");
+        resolver.allowServer = allowServer;
         return true;
     }
 
@@ -132,7 +121,6 @@ contract Resolver {
         returns (bool success)
     {
         delete resolvers[idHash];
-        emit ResolverDeleteEvent(idHash);
         return true;
     }
 
@@ -143,7 +131,6 @@ contract Resolver {
         require(idHash != bytes4(0x0), "Invalid hash");
         require(secondaryResolvers[idHash] == bytes4(0x0), "Invalid");
         secondaryResolvers[idHash] = primaryResolverHash;
-        emit SecondaryResolverCreateEvent(idHash);
     }
 
     function deleteSecondaryResolver(bytes32 idHash)
@@ -153,7 +140,6 @@ contract Resolver {
     {
         require(secondaryResolvers[idHash] != bytes4(0x0), "Invalid");
         delete secondaryResolvers[idHash];
-        emit SecondaryResolverDeleteEvent(idHash);
         return true;
     }
 
