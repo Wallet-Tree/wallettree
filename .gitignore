@@ -6,4 +6,6 @@ _templates
 .DS_Store
 
 # Compiled contract ABIs and binaries
-# build/contracts/*
+build
+
+.env
