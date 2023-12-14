@@ -22,6 +22,7 @@ module.exports = {
       timeoutBlocks: 200,
       skipDryRun: true,
       chainId: 137,
+      gasPrice: 470000000000,
     },
     polygon_infura_testnet: {
       provider: () =>
